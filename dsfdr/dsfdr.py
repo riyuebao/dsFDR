@@ -170,6 +170,7 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
         k1 = 1 / np.sum(labels == 0)
         k2 = 1 / np.sum(labels == 1)
         for cperm in range(numperm):
+            np.random.seed(cperm) 
             np.random.shuffle(labels)
             p[labels == 0, cperm] = k1
         p2 = np.ones(p.shape) * k2
@@ -194,6 +195,7 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
         t = np.abs(tstat)
         u = np.zeros([numbact, numperm])
         for cperm in range(numperm):
+            np.random.seed(cperm) 
             rlabels = np.random.permutation(labels)
             rt = method(data, rlabels)
             u[:, cperm] = rt
@@ -213,6 +215,7 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
         t = np.abs(tstat)
         permlabels = np.zeros([len(labels), numperm])
         for cperm in range(numperm):
+            np.random.seed(cperm) 
             rlabels = np.random.permutation(labels)
             permlabels[:, cperm] = rlabels
         u = np.abs(np.dot(data, permlabels))
@@ -238,6 +241,7 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
 
             permlabels = np.zeros([len(label_nonzero), numperm])
             for cperm in range(numperm):
+                np.random.seed(cperm) 
                 rlabels = np.random.permutation(label_nonzero)
                 permlabels[:, cperm] = rlabels
             u[i, :] = np.abs(np.dot(sample_nonzero, permlabels))
@@ -248,6 +252,7 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
         tstat = t.copy()
         u = np.zeros([numbact, numperm])
         for cperm in range(numperm):
+            np.random.seed(cperm) 
             rlabels = np.random.permutation(labels)
             rt = method(data, rlabels)
             u[:, cperm] = rt
@@ -302,6 +307,18 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
             reject = np.zeros(numbact, dtype=int)
             reject = (pvals <= realcp)
 
+        ## run through the same loop and store all fdrs
+        allfdr2 = []
+        allt2 = []
+        for cp2 in sortp:
+            realnum2 = np.sum(pvals <= cp2)
+            fdr2 = (realnum2 + np.count_nonzero(
+                pvals_u <= cp2)) / (realnum2 * (numperm + 1))
+            allfdr2.append(fdr2)
+            allt2.append(cp2)
+            print(repr(cp2) + ' ' + repr(realnum2) + ' ' + repr(np.count_nonzero(
+                pvals_u <= cp2)) + ' ' + repr(numperm) + ' ' + repr(fdr2))
+
     elif fdr_method == 'bhfdr' or fdr_method == \
                        'filterBH' or fdr_method == 'gilbertBH':
         t_star = np.array([t, ] * numperm).transpose()
@@ -325,5 +342,40 @@ def dsfdr(data, labels, transform_type='rankdata', method='meandiff',
     ret_reject[filtered_order] = reject
     ret_pvals[filtered_order] = pvals
     ret_tstat[filtered_order] = tstat
+
+    
+    print('fdr =' + repr(fdr) + ',alpha=' + repr(alpha) + ',realcp=' + repr(realcp))
+    # print(allfdr)
+    # print(allfdr2)
+    # print(allt)
+    # print(allt2)
+
+    with open('o_pvals_unique.csv', 'w') as o_pvals_unique:
+        for row in pvals_unique:
+            print(row, file=o_pvals_unique)
+    with open('o_sortp.csv', 'w') as o_sortp:
+        for row in sortp:
+            print(row, file=o_sortp)
+
+    with open('o_allfdr.csv', 'w') as o_allfdr:
+        for row in allfdr2:
+            print(row, file=o_allfdr)
+    with open('o_allt.csv', 'w') as o_allt:
+        for row in allt2:
+            print(row, file=o_allt)
+
+    ## note dor dsfdr method: 
+    ## all output values are in the same row order as the data matrix
+    with open('o_reject.csv', 'w') as o_ret_reject:
+        for row in ret_reject:
+            print(row, file=o_ret_reject)
+    with open('o_pvals.csv', 'w') as o_ret_pvals:
+        for row in ret_pvals:
+            print(row, file=o_ret_pvals)
+    with open('o_tstat.csv', 'w') as o_ret_tstat:
+        for row in ret_tstat:
+            print(row, file=o_ret_tstat)
+
+    
     logger.debug('Rejected %d features' % np.sum(reject))
     return ret_reject, ret_tstat, ret_pvals
